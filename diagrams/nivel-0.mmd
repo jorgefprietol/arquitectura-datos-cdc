@@ -1,0 +1,22 @@
+flowchart TB
+    CAN["CANALES TRANSACCIONALES<br/>Aplicaciones y servicios"]
+    CORE["SISTEMAS CORE<br/>Fuente autoritativa de transacciones<br/>Carga de referencia: 3000 TPS"]
+    DATA["PLATAFORMA DE DATOS<br/>Captura de cambios y distribución<br/>Modelos de lectura e histórico analítico"]
+    OPS["CONSUMIDORES OPERACIONALES<br/>Aplicaciones y API de consulta<br/>Frescura crítica objetivo: menos de 10 s"]
+    BI["CONSUMIDORES ANALÍTICOS<br/>Reportes y análisis de negocio<br/>Frescura máxima: 24 h"]
+    GOV["CAPACIDADES TRANSVERSALES<br/>Seguridad · Gobierno · Calidad<br/>Monitoreo · Recuperación · DataOps"]
+    CAN -->|"Comandos y validaciones transaccionales"| CORE
+    CORE -->|"Cambios confirmados mediante CDC"| DATA
+    DATA -->|"Datos operacionales de consulta"| OPS
+    DATA -->|"Datos históricos y modelos analíticos"| BI
+    GOV -.->|"Controles y operación"| DATA
+    classDef source fill:#eaf0f7,stroke:#546b89,color:#152a43,stroke-width:2px
+    classDef platform fill:#102d50,stroke:#102d50,color:#ffffff,stroke-width:2px
+    classDef hot fill:#e2f4ef,stroke:#188775,color:#123e37,stroke-width:2px
+    classDef cold fill:#edf0ff,stroke:#666aca,color:#292c66,stroke-width:2px
+    classDef control fill:#fff4dc,stroke:#b98220,color:#624914,stroke-width:1px
+    class CAN,CORE source
+    class DATA platform
+    class OPS hot
+    class BI cold
+    class GOV control

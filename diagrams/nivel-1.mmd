@@ -1,0 +1,52 @@
+flowchart TB
+    subgraph SOURCES["01 · ORIGEN Y CAPTURA"]
+        APP["Canales transaccionales"]
+        CORE[("Bases de los sistemas Core<br/>Datos confirmados y logs")]
+        CDC["Debezium / Kafka Connect<br/>CDC compatible con cada motor<br/>Snapshot inicial controlado"]
+        APP -->|"Escrituras y validaciones"| CORE
+        CORE -->|"Lectura incremental del log"| CDC
+    end
+    subgraph BUS["02 · TRANSPORTE DURABLE"]
+        KAFKA[("Apache Kafka<br/>Tópicos por dominio / entidad<br/>Clave: origen + entidad + PK<br/>Réplicas en distintos dominios de fallo")]
+        CONTRACT["Contratos y registro de esquemas<br/>Compatibilidad y evolución"]
+        CDC -->|"Eventos CDC + posición de origen"| KAFKA
+        CONTRACT -.->|"Validación de contratos"| KAFKA
+    end
+    subgraph HOT["03 · OPERACIONAL"]
+        STREAM["Spark Structured Streaming<br/>Validación y proyecciones<br/>Microbatches cortos, sujetos a PoC"]
+        ODS[("Base operacional de lectura<br/>Upsert / delete idempotente<br/>Control de versión de origen")]
+        API["API de consulta<br/>Autorización y frescura del dato<br/>Objetivo: menos de 10 s"]
+        USER["Aplicaciones de consulta"]
+        KAFKA -->|"Grupo consumidor operacional"| STREAM
+        STREAM -->|"Aplicación transaccional por clave"| ODS
+        ODS --> API --> USER
+    end
+    subgraph COLD["04 · ANALÍTICA"]
+        INGEST["Ingesta independiente<br/>Spark Structured Streaming"]
+        BRONZE[("Lakehouse · Bronze<br/>Eventos originales + metadatos<br/>Almacenamiento de objetos")]
+        BATCH["Spark SQL + Airflow<br/>Procesos incrementales horarios<br/>Calidad y reconciliación"]
+        GOLD[("Silver / Gold<br/>Datos depurados y modelos de negocio")]
+        BI["Motor SQL / BI<br/>Reportes y analítica<br/>Frescura máxima: 24 h"]
+        KAFKA -->|"Grupo consumidor analítico"| INGEST
+        INGEST --> BRONZE --> BATCH --> GOLD --> BI
+    end
+    subgraph CONTROL["05 · CONTROLES TRANSVERSALES"]
+        STATE[("Estado durable<br/>Offsets Connect / historial de esquema<br/>Checkpoints separados por consulta")]
+        ERR["Recuperación de las dos rutas<br/>Reintentos y replay idempotente<br/>Cuarentena con alerta y reconciliación"]
+        OBS["Métricas, logs y alertas<br/>Latencia commit a consulta, lag<br/>Calidad, errores y recursos"]
+        SEC["IAM / RBAC · TLS · Cifrado<br/>Catálogo, linaje y auditoría<br/>Git · CI/CD · IaC"]
+    end
+    KAFKA -.->|"Controles transversales de ambas rutas"| STATE
+    STATE ~~~ ERR
+    ERR ~~~ OBS
+    OBS ~~~ SEC
+    classDef source fill:#eaf0f7,stroke:#546b89,color:#152a43,stroke-width:1.5px
+    classDef bus fill:#102d50,stroke:#102d50,color:#ffffff,stroke-width:2px
+    classDef hot fill:#e2f4ef,stroke:#188775,color:#123e37,stroke-width:1.5px
+    classDef cold fill:#edf0ff,stroke:#666aca,color:#292c66,stroke-width:1.5px
+    classDef control fill:#fff4dc,stroke:#b98220,color:#624914,stroke-width:1px
+    class APP,CORE,CDC source
+    class KAFKA bus
+    class STREAM,ODS,API,USER hot
+    class INGEST,BRONZE,BATCH,GOLD,BI cold
+    class STATE,ERR,OBS,SEC,CONTRACT control
